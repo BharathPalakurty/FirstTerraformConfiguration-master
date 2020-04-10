@@ -1,0 +1,26 @@
+az vm availability-set create -g kubernetes -n worker-as
+
+for i in 0 1; do
+    echo "[Worker ${i}] Creating public IP..."
+    az network public-ip create -n worker-${i}-pip -g kubernetes > /dev/null
+
+    echo "[Worker ${i}] Creating NIC..."
+    az network nic create -g kubernetes \
+        -n worker-${i}-nic \
+        --private-ip-address 10.240.0.2${i} \
+        --public-ip-address worker-${i}-pip \
+        --vnet kubernetes-vnet \
+        --subnet kubernetes-subnet \
+        --ip-forwarding > /dev/null
+
+    echo "[Worker ${i}] Creating VM..."
+    az vm create -g kubernetes \
+        -n worker-${i} \
+        --image "Canonical:UbuntuServer:18.04-LTS:18.04.202003250" \
+        --nics worker-${i}-nic \
+        --tags pod-cidr=10.200.${i}.0/24 \
+        --availability-set worker-as \
+        --nsg '' \
+        --generate-ssh-keys \
+        --admin-username 'kuberoot' > /dev/null
+done

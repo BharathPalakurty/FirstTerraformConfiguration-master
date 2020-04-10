@@ -1,0 +1,25 @@
+for i in 0 1; do
+    echo "[Controller ${i}] Creating public IP..."
+    az network public-ip create -n controller-${i}-pip -g kubernetes > /dev/null
+
+    echo "[Controller ${i}] Creating NIC..."
+    az network nic create -g kubernetes \
+        -n controller-${i}-nic \
+        --private-ip-address 10.240.0.1${i} \
+        --public-ip-address controller-${i}-pip \
+        --vnet kubernetes-vnet \
+        --subnet kubernetes-subnet \
+        --ip-forwarding \
+        --lb-name kubernetes-lb \
+        --lb-address-pools kubernetes-lb-pool > /dev/null
+
+    echo "[Controller ${i}] Creating VM..."
+    az vm create -g kubernetes \
+        -n controller-${i} \
+        --image "Canonical:UbuntuServer:18.04-LTS:18.04.202003250" \
+        --nics controller-${i}-nic \
+        --availability-set controller-as \
+        --nsg '' \
+        --admin-username 'kuberoot' \
+        --generate-ssh-keys > /dev/null
+done
